@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
@@ -8,7 +8,7 @@ import { Header } from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
 import { useOrder } from '@/lib/context/order-context'
 
-export default function SuccessPage() {
+function SuccessContent() {
   const searchParams = useSearchParams()
   const paymentIntentId = searchParams.get('payment_intent')
   const sessionId = searchParams.get('session_id') // Fallback for old checkout sessions
@@ -213,5 +213,17 @@ export default function SuccessPage() {
         </div>
       </main>
     </>
+  )
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-2 border-border border-t-accent rounded-full" />
+      </div>
+    }>
+      <SuccessContent />
+    </Suspense>
   )
 }
