@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { moveTempImagesToOrder } from '@/lib/utils/move-temp-images'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -87,6 +88,21 @@ export async function POST(request: NextRequest) {
         console.error('Error creating order:', error)
       } else {
         console.log('Order created successfully:', order.id)
+        
+        // Automatically move temp images to order folder (mobile flow)
+        // Try immediately - temp images should already be uploaded by this point
+        try {
+          console.log('🔄 Attempting to move temp images for order:', order.id)
+          const movedCount = await moveTempImagesToOrder(order.id)
+          if (movedCount > 0) {
+            console.log(`✅ Webhook auto-moved ${movedCount} images for order ${order.id}`)
+          } else {
+            console.log('ℹ️  No temp images found yet (will be moved by success page)')
+          }
+        } catch (error) {
+          console.error('Error auto-moving images:', error)
+          // Not critical - success page can still move them
+        }
       }
 
       break

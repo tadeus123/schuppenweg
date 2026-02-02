@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { moveTempImagesToOrder } from '@/lib/utils/move-temp-images'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -97,6 +98,13 @@ export async function POST(request: NextRequest) {
       console.log('✅ Created new order:', order.id)
     }
 
+    // First, try to move any temp images automatically (mobile flow)
+    console.log('🔄 Checking for temp images to move...')
+    const movedCount = await moveTempImagesToOrder(order.id)
+    if (movedCount > 0) {
+      console.log(`✅ Moved ${movedCount} images from temp storage`)
+    }
+
     // Check if images already uploaded
     const { data: existingImages } = await supabase
       .from('order_images')
@@ -104,6 +112,16 @@ export async function POST(request: NextRequest) {
       .eq('order_id', order.id)
 
     const existingPositions = new Set(existingImages?.map(img => img.position) || [])
+    
+    // If we have all 5 images, we're done
+    if (existingPositions.size >= 5) {
+      console.log('✅ All 5 images already uploaded')
+      return NextResponse.json({
+        orderId: order.id,
+        uploadedImages: 5,
+        message: 'Order completed successfully'
+      })
+    }
 
     // Upload images to storage and create records
     const imagePositions = ['front', 'back', 'left', 'right', 'top']
