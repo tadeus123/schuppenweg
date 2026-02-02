@@ -31,49 +31,66 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if order already exists for this payment intent
+    // Find existing order (created by webhook)
     const { data: existingOrder } = await supabase
       .from('orders')
       .select('id')
       .eq('payment_intent_id', paymentIntentId)
       .single()
 
+    let order: any
+
     if (existingOrder) {
-      return NextResponse.json({ 
-        orderId: existingOrder.id,
-        message: 'Order already exists'
-      })
+      // Use existing order (created by webhook)
+      console.log('Using existing order:', existingOrder.id)
+      order = existingOrder
+    } else {
+      // Create order if it doesn't exist (fallback)
+      const { data: newOrder, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          email,
+          customer_name: customerName,
+          address,
+          city,
+          postal_code: postalCode,
+          payment_intent_id: paymentIntentId,
+          payment_status: 'paid',
+          status: 'paid',
+        })
+        .select()
+        .single()
+
+      if (orderError) {
+        console.error('Error creating order:', orderError)
+        return NextResponse.json(
+          { error: 'Failed to create order' },
+          { status: 500 }
+        )
+      }
+      order = newOrder
     }
 
-    // Create order
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert({
-        email,
-        customer_name: customerName,
-        address,
-        city,
-        postal_code: postalCode,
-        payment_intent_id: paymentIntentId,
-        payment_status: 'paid',
-        status: 'paid',
-      })
-      .select()
-      .single()
+    // Check if images already uploaded
+    const { data: existingImages } = await supabase
+      .from('order_images')
+      .select('position')
+      .eq('order_id', order.id)
 
-    if (orderError) {
-      console.error('Error creating order:', orderError)
-      return NextResponse.json(
-        { error: 'Failed to create order' },
-        { status: 500 }
-      )
-    }
+    const existingPositions = new Set(existingImages?.map(img => img.position) || [])
 
     // Upload images to storage and create records
     const imagePositions = ['front', 'back', 'left', 'right', 'top']
     const uploadedImages: any[] = []
 
     for (const position of imagePositions) {
+      // Skip if already uploaded
+      if (existingPositions.has(position)) {
+        console.log(`Image ${position} already exists, skipping`)
+        continue
+      }
+
+
       const imageFile = formData.get(`image_${position}`) as File
       if (imageFile) {
         try {
