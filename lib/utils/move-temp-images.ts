@@ -118,9 +118,25 @@ export async function moveTempImagesToOrder(orderId: string): Promise<number> {
         }
       }
 
-      // If we successfully moved images, we're done
+      // If we successfully moved images, clean up the temp folder
       if (movedCount > 0) {
         console.log(`✅ Successfully moved ${movedCount} images from temp/${folder.name}`)
+        
+        // Delete the entire temp folder
+        try {
+          const { data: remainingFiles } = await supabase.storage
+            .from('head-images')
+            .list(`temp/${folder.name}`)
+          
+          if (remainingFiles && remainingFiles.length > 0) {
+            const filePaths = remainingFiles.map(f => `temp/${folder.name}/${f.name}`)
+            await supabase.storage.from('head-images').remove(filePaths)
+            console.log(`🧹 Cleaned up temp folder: temp/${folder.name}`)
+          }
+        } catch (error) {
+          console.error('Error cleaning temp folder:', error)
+        }
+        
         return movedCount
       }
     }
