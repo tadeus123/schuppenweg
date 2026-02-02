@@ -58,17 +58,32 @@ function SuccessContent() {
         console.warn('⚠️  No shipping details available!')
       }
 
-      // Add all images
+      // Add temp ID if available
+      const tempId = typeof window !== 'undefined' ? sessionStorage.getItem('order_temp_id') : null
+      if (tempId) {
+        formData.append('tempId', tempId)
+      }
+
+      // Add all images (URLs if pre-uploaded, Files as fallback)
       const positions: Array<'front' | 'back' | 'left' | 'right' | 'top'> = ['front', 'back', 'left', 'right', 'top']
       let imageCount = 0
       for (const position of positions) {
-        const image = images[position]
-        if (image?.file) {
-          formData.append(`image_${position}`, image.file, `${position}.jpg`)
-          imageCount++
+        const image = images[position] as any
+        if (image) {
+          // If image was pre-uploaded (mobile), send URL
+          if (image.uploadedUrl) {
+            formData.append(`image_${position}_url`, image.uploadedUrl)
+            imageCount++
+            console.log(`📷 Image ${position} already uploaded (mobile)`)
+          } else if (image.file) {
+            // Desktop: send file directly
+            formData.append(`image_${position}`, image.file, `${position}.jpg`)
+            imageCount++
+            console.log(`📷 Image ${position} uploading now (desktop)`)
+          }
         }
       }
-      console.log(`📷 Adding ${imageCount} images to form data`)
+      console.log(`📷 Total images to process: ${imageCount}`)
 
       const response = await fetch('/api/complete-order', {
         method: 'POST',

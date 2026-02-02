@@ -15,23 +15,16 @@ interface OrderContextType {
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined)
 
-// Helper to serialize File objects to base64 for storage
-async function serializeImages(images: Record<ImagePosition, UploadedImage | null>): Promise<string> {
+// Simplified storage - just store the essential data
+function serializeImages(images: Record<ImagePosition, UploadedImage | null>): string {
   const serialized: Record<string, any> = {}
   
   for (const [position, image] of Object.entries(images)) {
-    if (image?.file) {
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result as string)
-        reader.readAsDataURL(image.file)
-      })
-      
+    if (image) {
       serialized[position] = {
         preview: image.preview,
-        fileData: base64,
-        fileName: image.file.name,
-        fileType: image.file.type,
+        uploadedUrl: (image as any).uploadedUrl, // URL if already uploaded to temp storage
+        hasFile: !!image.file,
       }
     }
   }
@@ -39,8 +32,8 @@ async function serializeImages(images: Record<ImagePosition, UploadedImage | nul
   return JSON.stringify(serialized)
 }
 
-// Helper to deserialize base64 back to File objects
-async function deserializeImages(data: string): Promise<Record<ImagePosition, UploadedImage | null>> {
+// Restore minimal data (without File objects)
+function deserializeImages(data: string): Record<ImagePosition, UploadedImage | null> {
   try {
     const parsed = JSON.parse(data)
     const images: Record<ImagePosition, UploadedImage | null> = {
@@ -52,16 +45,12 @@ async function deserializeImages(data: string): Promise<Record<ImagePosition, Up
     }
     
     for (const [position, data] of Object.entries(parsed)) {
-      if (data && typeof data === 'object' && 'fileData' in data) {
-        // Convert base64 back to Blob
-        const response = await fetch(data.fileData)
-        const blob = await response.blob()
-        const file = new File([blob], data.fileName, { type: data.fileType })
-        
+      if (data && typeof data === 'object') {
         images[position as ImagePosition] = {
-          file,
+          file: null as any, // Will be populated from uploadedUrl when needed
           preview: data.preview,
-        }
+          uploadedUrl: data.uploadedUrl,
+        } as any
       }
     }
     
@@ -92,40 +81,43 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   // Restore from sessionStorage on mount
   useEffect(() => {
-    const restoreData = async () => {
-      try {
-        const savedImages = sessionStorage.getItem('order_images')
-        const savedShipping = sessionStorage.getItem('order_shipping')
-        const savedSessionId = sessionStorage.getItem('order_session_id')
-        
-        if (savedImages) {
-          const restoredImages = await deserializeImages(savedImages)
-          setImagesState(restoredImages)
-        }
-        
-        if (savedShipping) {
-          setShippingDetailsState(JSON.parse(savedShipping))
-        }
-        
-        if (savedSessionId) {
-          setSessionIdState(savedSessionId)
-        }
-      } catch (error) {
-        console.error('Error restoring order data:', error)
-      } finally {
-        setIsHydrated(true)
+    try {
+      const savedImages = sessionStorage.getItem('order_images')
+      const savedShipping = sessionStorage.getItem('order_shipping')
+      const savedSessionId = sessionStorage.getItem('order_session_id')
+      const savedTempId = sessionStorage.getItem('order_temp_id')
+      
+      if (savedImages) {
+        const restoredImages = deserializeImages(savedImages)
+        setImagesState(restoredImages)
       }
+      
+      if (savedShipping) {
+        setShippingDetailsState(JSON.parse(savedShipping))
+      }
+      
+      if (savedSessionId) {
+        setSessionIdState(savedSessionId)
+      }
+    } catch (error) {
+      console.error('Error restoring order data:', error)
+    } finally {
+      setIsHydrated(true)
     }
-    
-    restoreData()
   }, [])
 
   const setImages = useCallback((newImages: Record<ImagePosition, UploadedImage | null>) => {
     setImagesState(newImages)
-    // Persist to sessionStorage
-    serializeImages(newImages).then(serialized => {
+    // Persist to sessionStorage (synchronous now)
+    const serialized = serializeImages(newImages)
+    try {
       sessionStorage.setItem('order_images', serialized)
-    })
+    } catch (error) {
+      console.error('Error saving images to sessionStorage:', error)
+      // If sessionStorage is full, clear old data and try again
+      sessionStorage.removeItem('order_images')
+      sessionStorage.setItem('order_images', serialized)
+    }
   }, [])
 
   const setShippingDetails = useCallback((details: ShippingDetails) => {

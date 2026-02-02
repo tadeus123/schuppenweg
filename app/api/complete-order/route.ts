@@ -93,6 +93,9 @@ export async function POST(request: NextRequest) {
     const imagePositions = ['front', 'back', 'left', 'right', 'top']
     const uploadedImages: any[] = []
 
+    // Get temp ID if images were pre-uploaded (mobile flow)
+    const tempId = formData.get('tempId') as string
+
     for (const position of imagePositions) {
       // Skip if already uploaded
       if (existingPositions.has(position)) {
@@ -100,32 +103,46 @@ export async function POST(request: NextRequest) {
         continue
       }
 
-
-      const imageFile = formData.get(`image_${position}`) as File
-      if (imageFile) {
+      // Check for pre-uploaded image URL (mobile flow)
+      const preUploadedUrl = formData.get(`image_${position}_url`) as string
+      
+      if (preUploadedUrl && tempId) {
+        // Mobile: Image already in temp storage, move to final location
         try {
-          // Generate unique filename
-          const fileExt = imageFile.name.split('.').pop()
-          const fileName = `${order.id}/${position}.${fileExt}`
-
-          // Upload to Supabase Storage
-          const { data: uploadData, error: uploadError } = await supabase.storage
+          const tempPath = `temp/${tempId}/${position}.jpg`
+          const finalPath = `${order.id}/${position}.jpg`
+          
+          // Download from temp
+          const { data: fileData, error: downloadError } = await supabase.storage
             .from('head-images')
-            .upload(fileName, imageFile, {
-              contentType: imageFile.type,
-              upsert: false,
-            })
-
-          if (uploadError) {
-            console.error(`Error uploading ${position} image:`, uploadError)
+            .download(tempPath)
+          
+          if (downloadError) {
+            console.error(`Error downloading temp ${position}:`, downloadError)
             continue
           }
-
-          // Get public URL (even though bucket is private, we'll use signed URLs later)
+          
+          // Upload to final location
+          const { error: uploadError } = await supabase.storage
+            .from('head-images')
+            .upload(finalPath, fileData, {
+              contentType: 'image/jpeg',
+              upsert: false,
+            })
+          
+          if (uploadError) {
+            console.error(`Error moving ${position}:`, uploadError)
+            continue
+          }
+          
+          // Delete temp file
+          await supabase.storage.from('head-images').remove([tempPath])
+          
+          // Get public URL
           const { data: { publicUrl } } = supabase.storage
             .from('head-images')
-            .getPublicUrl(fileName)
-
+            .getPublicUrl(finalPath)
+          
           // Create order_image record
           const { data: imageRecord, error: imageError } = await supabase
             .from('order_images')
@@ -136,14 +153,54 @@ export async function POST(request: NextRequest) {
             })
             .select()
             .single()
-
-          if (imageError) {
-            console.error(`Error creating image record for ${position}:`, imageError)
-          } else {
+          
+          if (!imageError) {
             uploadedImages.push(imageRecord)
+            console.log(`✅ Moved temp ${position} to final`)
           }
         } catch (error) {
-          console.error(`Error processing ${position} image:`, error)
+          console.error(`Error moving temp ${position}:`, error)
+        }
+      } else {
+        // Desktop: Direct upload from FormData
+        const imageFile = formData.get(`image_${position}`) as File
+        if (imageFile) {
+          try {
+            const fileExt = imageFile.name.split('.').pop()
+            const fileName = `${order.id}/${position}.${fileExt}`
+
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('head-images')
+              .upload(fileName, imageFile, {
+                contentType: imageFile.type,
+                upsert: false,
+              })
+
+            if (uploadError) {
+              console.error(`Error uploading ${position}:`, uploadError)
+              continue
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+              .from('head-images')
+              .getPublicUrl(fileName)
+
+            const { data: imageRecord, error: imageError } = await supabase
+              .from('order_images')
+              .insert({
+                order_id: order.id,
+                image_url: publicUrl,
+                position,
+              })
+              .select()
+              .single()
+
+            if (!imageError) {
+              uploadedImages.push(imageRecord)
+            }
+          } catch (error) {
+            console.error(`Error processing ${position}:`, error)
+          }
         }
       }
     }
