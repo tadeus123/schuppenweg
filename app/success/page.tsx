@@ -31,6 +31,17 @@ function SuccessContent() {
   }, [paymentIntentId, sessionId, images, shippingDetails])
 
   const uploadImagesAndCompleteOrder = async (paymentId: string) => {
+    console.log('🔵 Starting image upload...')
+    console.log('📦 Payment ID:', paymentId)
+    console.log('📧 Shipping details:', shippingDetails)
+    console.log('🖼️  Images available:', {
+      front: !!images?.front?.file,
+      back: !!images?.back?.file,
+      left: !!images?.left?.file,
+      right: !!images?.right?.file,
+      top: !!images?.top?.file,
+    })
+
     setUploadStatus('uploading')
 
     try {
@@ -43,16 +54,21 @@ function SuccessContent() {
         formData.append('address', shippingDetails.address)
         formData.append('city', shippingDetails.city)
         formData.append('postal_code', shippingDetails.postal_code)
+      } else {
+        console.warn('⚠️  No shipping details available!')
       }
 
       // Add all images
       const positions: Array<'front' | 'back' | 'left' | 'right' | 'top'> = ['front', 'back', 'left', 'right', 'top']
+      let imageCount = 0
       for (const position of positions) {
         const image = images[position]
         if (image?.file) {
           formData.append(`image_${position}`, image.file, `${position}.jpg`)
+          imageCount++
         }
       }
+      console.log(`📷 Adding ${imageCount} images to form data`)
 
       const response = await fetch('/api/complete-order', {
         method: 'POST',

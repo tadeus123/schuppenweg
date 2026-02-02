@@ -13,8 +13,13 @@ const supabase = createClient(
 )
 
 export async function POST(request: NextRequest) {
+  console.log('🔵 Complete order API called')
   try {
     const formData = await request.formData()
+    
+    // Log all form data keys for debugging
+    const formDataKeys = Array.from(formData.keys())
+    console.log('📋 FormData keys:', formDataKeys)
     
     // Extract data
     const paymentIntentId = formData.get('paymentIntentId') as string
@@ -24,7 +29,12 @@ export async function POST(request: NextRequest) {
     const city = formData.get('city') as string
     const postalCode = formData.get('postal_code') as string
 
+    console.log('📦 Payment Intent ID:', paymentIntentId)
+    console.log('📧 Email:', email)
+    console.log('🖼️  Image fields:', formDataKeys.filter(k => k.startsWith('image_')))
+
     if (!paymentIntentId || !email || !customerName || !address || !city || !postalCode) {
+      console.error('❌ Missing required fields')
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
