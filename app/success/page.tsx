@@ -23,10 +23,25 @@ function SuccessContent() {
       setOrderNumber(`SW-${id.slice(-8).toUpperCase()}`)
     }
 
-    // Upload images if we have them and haven't processed yet
-    if (id && images && shippingDetails && !hasProcessed.current) {
+    console.log('🔍 Success page check:', {
+      hasId: !!id,
+      hasImages: !!images,
+      hasShipping: !!shippingDetails,
+      hasProcessed: hasProcessed.current,
+      imageCount: images ? Object.values(images).filter(Boolean).length : 0,
+    })
+
+    // Upload images if we have payment ID and haven't processed yet
+    // Note: images might be in temp storage already (mobile flow)
+    if (id && !hasProcessed.current) {
+      console.log('🚀 Starting image upload/completion process')
       hasProcessed.current = true
       uploadImagesAndCompleteOrder(id)
+    } else {
+      console.log('⏭️  Skipping upload:', { 
+        noId: !id, 
+        alreadyProcessed: hasProcessed.current 
+      })
     }
   }, [paymentIntentId, sessionId, images, shippingDetails])
 
@@ -48,14 +63,16 @@ function SuccessContent() {
       const formData = new FormData()
       formData.append('paymentIntentId', paymentId)
       
+      // Add shipping details if available (optional since order already exists from webhook)
       if (shippingDetails) {
         formData.append('email', shippingDetails.email)
         formData.append('customer_name', shippingDetails.customer_name)
         formData.append('address', shippingDetails.address)
         formData.append('city', shippingDetails.city)
         formData.append('postal_code', shippingDetails.postal_code)
+        console.log('📧 Sending shipping details')
       } else {
-        console.warn('⚠️  No shipping details available!')
+        console.log('📧 No shipping details (order should exist from webhook)')
       }
 
       // Add temp ID if available

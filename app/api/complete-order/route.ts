@@ -13,13 +13,16 @@ const supabase = createClient(
 )
 
 export async function POST(request: NextRequest) {
-  console.log('🔵 Complete order API called')
+  console.log('🔵 ===== COMPLETE ORDER API CALLED =====')
   try {
     const formData = await request.formData()
     
     // Log all form data keys for debugging
     const formDataKeys = Array.from(formData.keys())
     console.log('📋 FormData keys:', formDataKeys)
+    console.log('📋 FormData entries:', Array.from(formData.entries()).map(([k, v]) => 
+      `${k}: ${v instanceof File ? `File(${v.name})` : String(v).substring(0, 50)}`
+    ))
     
     // Extract data
     const paymentIntentId = formData.get('paymentIntentId') as string
@@ -33,13 +36,16 @@ export async function POST(request: NextRequest) {
     console.log('📧 Email:', email)
     console.log('🖼️  Image fields:', formDataKeys.filter(k => k.startsWith('image_')))
 
-    if (!paymentIntentId || !email || !customerName || !address || !city || !postalCode) {
-      console.error('❌ Missing required fields')
+    if (!paymentIntentId) {
+      console.error('❌ Missing paymentIntentId')
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing paymentIntentId', received: formDataKeys },
         { status: 400 }
       )
     }
+    
+    // Shipping details are optional if order already exists (created by webhook)
+    console.log('📋 Has shipping details:', !!email && !!customerName)
 
     // Find existing order (created by webhook)
     const { data: existingOrder } = await supabase
@@ -52,10 +58,19 @@ export async function POST(request: NextRequest) {
 
     if (existingOrder) {
       // Use existing order (created by webhook)
-      console.log('Using existing order:', existingOrder.id)
+      console.log('✅ Using existing order:', existingOrder.id)
       order = existingOrder
     } else {
-      // Create order if it doesn't exist (fallback)
+      // Create order if it doesn't exist (fallback - need shipping details)
+      if (!email || !customerName || !address || !city || !postalCode) {
+        console.error('❌ Order not found and shipping details missing for creation')
+        return NextResponse.json(
+          { error: 'Order not found and cannot create without shipping details' },
+          { status: 400 }
+        )
+      }
+      
+      console.log('⚠️  Creating new order (webhook might have failed)')
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -72,13 +87,14 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (orderError) {
-        console.error('Error creating order:', orderError)
+        console.error('❌ Error creating order:', orderError)
         return NextResponse.json(
-          { error: 'Failed to create order' },
+          { error: 'Failed to create order', details: orderError.message },
           { status: 500 }
         )
       }
       order = newOrder
+      console.log('✅ Created new order:', order.id)
     }
 
     // Check if images already uploaded
