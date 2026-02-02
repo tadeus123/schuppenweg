@@ -11,10 +11,9 @@ const stripePromise = loadStripe(
 interface StripeProviderProps {
   children: ReactNode
   clientSecret: string
-  options?: StripeElementsOptions
 }
 
-export function StripeProvider({ children, clientSecret, options }: StripeProviderProps) {
+export function StripeProvider({ children, clientSecret }: StripeProviderProps) {
   const elementsOptions = {
     clientSecret,
     appearance: {
@@ -70,8 +69,7 @@ export function StripeProvider({ children, clientSecret, options }: StripeProvid
         },
       },
     },
-    ...options,
-  } satisfies StripeElementsOptions
+  }
 
   return (
     <Elements options={elementsOptions} stripe={stripePromise}>
