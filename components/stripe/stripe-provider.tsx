@@ -15,10 +15,10 @@ interface StripeProviderProps {
 }
 
 export function StripeProvider({ children, clientSecret, options }: StripeProviderProps) {
-  const elementsOptions: StripeElementsOptions = {
+  const elementsOptions = {
     clientSecret,
     appearance: {
-      theme: 'night',
+      theme: 'night' as const,
       variables: {
         colorPrimary: '#14b8a6',
         colorBackground: '#0a0a0a',
@@ -71,7 +71,7 @@ export function StripeProvider({ children, clientSecret, options }: StripeProvid
       },
     },
     ...options,
-  }
+  } satisfies StripeElementsOptions
 
   return (
     <Elements options={elementsOptions} stripe={stripePromise}>
