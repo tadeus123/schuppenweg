@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "verify-supabase": "npx tsx scripts/verify-supabase.ts",
-    "clean-storage": "npx tsx scripts/clean-storage.ts"
+    "clean-storage": "npx tsx scripts/clean-storage.ts",
+    "move-temp-images": "npx tsx scripts/move-temp-images.ts"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^5.4.1",
