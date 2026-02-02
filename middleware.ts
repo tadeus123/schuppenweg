@@ -1,10 +1,9 @@
-import { type NextRequest } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware'
-
-export const runtime = 'nodejs'
+import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  return await updateSession(request)
+  // For now, just pass through all requests
+  // Auth checks are handled in the actual admin pages
+  return NextResponse.next()
 }
 
 export const config = {
