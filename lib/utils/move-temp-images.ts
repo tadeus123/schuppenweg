@@ -83,6 +83,20 @@ export async function moveTempImagesToOrder(orderId: string): Promise<number> {
             .from('head-images')
             .getPublicUrl(finalPath)
 
+          // Check if order_image record already exists for this position
+          const { data: existingRecord } = await supabase
+            .from('order_images')
+            .select('id')
+            .eq('order_id', orderId)
+            .eq('position', position)
+            .single()
+
+          if (existingRecord) {
+            console.log(`ℹ️  Image ${position} already exists for order ${orderId}, skipping`)
+            movedCount++
+            continue
+          }
+
           // Create order_image record
           const { error: imageError } = await supabase
             .from('order_images')
