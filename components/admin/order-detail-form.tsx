@@ -152,13 +152,17 @@ export function OrderDetailForm({ order }: OrderDetailFormProps) {
       </div>
 
       {/* Tracking Number */}
-      <Input
-        id="tracking"
-        label="Sendungsnummer"
-        placeholder="z.B. DHL 1234567890"
-        value={trackingNumber}
-        onChange={(e) => setTrackingNumber(e.target.value)}
-      />
+      <div>
+        <label htmlFor="tracking" className="block text-sm font-medium text-foreground-muted mb-2 uppercase tracking-wider">
+          Sendungsnummer
+        </label>
+        <Input
+          id="tracking"
+          placeholder="z.B. DHL 1234567890"
+          value={trackingNumber}
+          onChange={(e) => setTrackingNumber(e.target.value)}
+        />
+      </div>
 
       {/* Status */}
       <div>

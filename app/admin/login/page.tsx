@@ -83,29 +83,37 @@ export default function AdminLoginPage() {
 
         <div className="card p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              label="E-Mail"
-              placeholder="admin@schuppenweg.de"
-              value={formData.email}
-              onChange={handleChange}
-              autoComplete="email"
-              disabled={!isSupabaseConfigured}
-            />
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-foreground-muted mb-2">
+                E-Mail
+              </label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="admin@schuppenweg.de"
+                value={formData.email}
+                onChange={handleChange}
+                autoComplete="email"
+                disabled={!isSupabaseConfigured}
+              />
+            </div>
 
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              label="Passwort"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={handleChange}
-              autoComplete="current-password"
-              disabled={!isSupabaseConfigured}
-            />
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-foreground-muted mb-2">
+                Passwort
+              </label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                autoComplete="current-password"
+                disabled={!isSupabaseConfigured}
+              />
+            </div>
 
             {error && (
               <p className="text-error text-sm">{error}</p>
