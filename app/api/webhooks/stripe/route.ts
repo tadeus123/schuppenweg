@@ -54,13 +54,13 @@ export async function POST(request: NextRequest) {
       const metadata = paymentIntent.metadata || {}
       
       // Check if order already exists
-      const { data: existingOrder } = await supabase
+      const { data: existingOrders } = await supabase
         .from('orders')
         .select('id')
         .eq('payment_intent_id', paymentIntent.id)
-        .single()
+        .limit(1)
 
-      if (existingOrder) {
+      if (existingOrders && existingOrders.length > 0) {
         console.log('Order already exists for payment intent:', paymentIntent.id)
         break
       }
@@ -103,13 +103,13 @@ export async function POST(request: NextRequest) {
       const paymentIntentId = session.payment_intent as string
 
       // Check if order already exists
-      const { data: existingSessionOrder } = await supabase
+      const { data: existingSessionOrders } = await supabase
         .from('orders')
         .select('id')
         .eq('payment_intent_id', paymentIntentId)
-        .single()
+        .limit(1)
 
-      if (existingSessionOrder) {
+      if (existingSessionOrders && existingSessionOrders.length > 0) {
         console.log('Order already exists for session:', session.id)
         break
       }
