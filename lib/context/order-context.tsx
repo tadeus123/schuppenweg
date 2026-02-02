@@ -44,12 +44,12 @@ function deserializeImages(data: string): Record<ImagePosition, UploadedImage | 
       top: null,
     }
     
-    for (const [position, data] of Object.entries(parsed)) {
-      if (data && typeof data === 'object') {
+    for (const [position, imageData] of Object.entries(parsed)) {
+      if (imageData && typeof imageData === 'object' && 'preview' in imageData) {
         images[position as ImagePosition] = {
           file: null as any, // Will be populated from uploadedUrl when needed
-          preview: data.preview,
-          uploadedUrl: data.uploadedUrl,
+          preview: imageData.preview as string,
+          uploadedUrl: (imageData as any).uploadedUrl,
         } as any
       }
     }
